@@ -4,7 +4,7 @@
   import Modal from './Modal.svelte'
   import { api } from '../lib/api.js'
   import { toast } from '../lib/stores.js'
-  import { fmtAmount, currencySymbol, todayISO, parseAmount } from '../lib/format.js'
+  import { fmtAmount, currencySymbol, todayISO, parseAmount, convertAmount } from '../lib/format.js'
 
   export let accounts = []
   export let categories = []
@@ -44,24 +44,38 @@
 
   const round2 = (n) => Math.round(n * 100) / 100
 
-  // сумма, приведённая к валюте счёта (именно она спишется/зачислится)
-  $: baseAmount = (() => {
+  $: typed = (() => {
     const a = parseAmount(amount)
-    if (!a || a <= 0) return 0
-    if (amountCur === srcCur) return round2(a)
-    if (!rate) return null // конвертация невозможна без курса
-    if (amountCur === 'USD' && srcCur === 'BYN') return round2(a * rate)
-    if (amountCur === 'BYN' && srcCur === 'USD') return round2(a / rate)
-    return round2(a)
+    return a && a > 0 ? round2(a) : 0
   })()
 
-  // предпросмотр конвертации для перевода (из валюты счёта в валюту получателя)
+  // сумма в валюте счёта по курсу НБРБ; null — курса нет
+  $: autoBase = typed ? convertAmount(typed, amountCur, srcCur, rate) : 0
+
+  // сумма введена не в валюте счёта: списание/зачисление по НБРБ, но банк может посчитать иначе
+  let srcEdit = ''
+  let srcDirty = false
+  let srcKey = `${amount}|${amountCur}|${account_id}`
+  $: {
+    const key = `${amount}|${amountCur}|${account_id}`
+    if (key !== srcKey) { srcKey = key; srcDirty = false }
+    if (!srcDirty) srcEdit = autoBase ? String(autoBase) : ''
+  }
+
+  // сумма, которая реально спишется/зачислится на счёт (в его валюте)
+  $: baseAmount = (() => {
+    if (amountCur === srcCur) return typed
+    const v = parseAmount(srcEdit)
+    return v && v > 0 ? round2(v) : 0
+  })()
+
+  // предпросмотр суммы зачисления для перевода (в валюте получателя)
   $: preview = (() => {
     if (type !== 'transfer' || !srcAcc || !dstAcc || !baseAmount) return null
     if (srcAcc.currency === dstAcc.currency) return { amount: baseAmount, converted: false, cur: dstAcc.currency }
-    if (!rate) return null
-    const out = srcAcc.currency === 'USD' ? baseAmount * rate : baseAmount / rate
-    return { amount: round2(out), converted: true, cur: dstAcc.currency }
+    // ввели сумму сразу в валюте получателя — она и зачисляется
+    const out = amountCur === dstAcc.currency ? typed : convertAmount(baseAmount, srcAcc.currency, dstAcc.currency, rate)
+    return out == null ? null : { amount: out, converted: true, cur: dstAcc.currency }
   })()
 
   // сумма зачисления при переводе между валютами: по НБРБ, но банк может дать другую
@@ -84,13 +98,17 @@
     if (busy) return
     if (!parseAmount(amount) || parseAmount(amount) <= 0) { toast('Укажите сумму', 'error'); return }
     if (!account_id) { toast('Выберите счёт', 'error'); return }
-    if (baseAmount == null) { toast('Курс НБРБ недоступен для пересчёта', 'error'); return }
-    if (!baseAmount) { toast('Укажите сумму', 'error'); return }
+    if (!baseAmount) {
+      toast(type === 'income' ? 'Укажите сумму зачисления на счёт' : 'Укажите сумму списания со счёта', 'error')
+      return
+    }
     if (type === 'transfer' && (!dest_account_id || dest_account_id === account_id)) {
       toast('Выберите другой счёт назначения', 'error'); return
     }
     let destOverride = null
-    if (cross) {
+    if (cross && amountCur === dstAcc.currency) {
+      destOverride = typed
+    } else if (cross) {
       const d = parseAmount(destEdit)
       if (!d || d <= 0) { toast('Укажите сумму зачисления', 'error'); return }
       if (!preview?.converted || Math.abs(round2(d) - preview.amount) >= 0.005) destOverride = round2(d)
@@ -150,16 +168,6 @@
           <button type="button" class:active={amountCur === 'USD'} on:click={() => (amountCur = 'USD')}>$</button>
         </div>
       </div>
-      {#if amountCur !== srcCur}
-        {#if baseAmount != null}
-          <div class="hint">
-            {type === 'income' ? 'Зачислится' : 'Спишется'} со счёта: <b>{fmtAmount(baseAmount, srcCur)}</b>
-            <span class="badge" style="margin-left:auto">курс {rate}</span>
-          </div>
-        {:else}
-          <div class="hint neg">Курс НБРБ недоступен для пересчёта</div>
-        {/if}
-      {/if}
     </div>
 
     <div class="field">
@@ -168,6 +176,27 @@
         {#each accounts as a}<option value={a.id}>{accountLabel(a)}</option>{/each}
       </select>
     </div>
+
+    {#if amountCur !== srcCur}
+      <div class="field">
+        <label for="srcamt">
+          {type === 'income' ? 'Зачислится на счёт' : 'Спишется со счёта'} ({currencySymbol(srcCur)}) — можно поправить
+        </label>
+        <input id="srcamt" type="text" inputmode="decimal" bind:value={srcEdit}
+          on:input={() => (srcDirty = true)} placeholder="0.00" />
+        {#if autoBase}
+          <div class="hint">
+            <span>{fmtAmount(typed, amountCur)}</span>
+            <ArrowRight size={14} />
+            <span>{fmtAmount(autoBase, srcCur)}</span>
+            <span class="badge" style="margin-left:auto">НБРБ {rate}</span>
+          </div>
+          <div class="sub">Если банк посчитал по другому курсу, впишите фактическую сумму.</div>
+        {:else if autoBase === null}
+          <div class="hint neg">Курс НБРБ недоступен — впишите сумму вручную</div>
+        {/if}
+      </div>
+    {/if}
 
     {#if type === 'transfer'}
       <div class="field">
@@ -179,7 +208,7 @@
           {/each}
         </select>
       </div>
-      {#if cross}
+      {#if cross && amountCur !== dstAcc.currency}
         <div class="field">
           <label for="dstamt">Зачислится на счёт ({currencySymbol(dstAcc.currency)}) — можно поправить</label>
           <input id="dstamt" type="text" inputmode="decimal" bind:value={destEdit}
@@ -264,7 +293,6 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
     padding: 9px 13px; margin-top: 8px;
   }
-  .hint b { color: var(--text); }
   .hint.neg { color: var(--neg); }
   .sub { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
   .cat-grid { display: flex; flex-wrap: wrap; gap: 8px; }
