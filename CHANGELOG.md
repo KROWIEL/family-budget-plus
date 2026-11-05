@@ -2,6 +2,9 @@
 
 Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии — [SemVer](https://semver.org/lang/ru/).
 
+Версии после 1.0.0 выпускаются автоматически, их описание — на странице
+[Releases](https://github.com/KROWIEL/family-budget-plus/releases).
+
 ## [1.0.0] — 2026-11-06
 
 Первый публичный релиз.
