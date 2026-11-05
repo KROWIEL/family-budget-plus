@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t family-budget-plus .
+
+      - name: Backend self-checks
+        run: |
+          docker run --rm -v "$PWD/backend:/w" -w /w -e DATA_DIR=/tmp/bp family-budget-plus \
+            sh -c "python test_security.py && python test_cross_sides.py"
+
+      - name: Smoke test
+        run: |
+          docker run -d --name app -p 8080:8080 \
+            -e SEED_USER1_USERNAME=ci -e SEED_USER1_PASSWORD=ci family-budget-plus
+          for i in $(seq 1 30); do curl -fs http://localhost:8080/api/health && break; sleep 1; done
+          curl -fs http://localhost:8080/ | grep -q "Budget+"
+          curl -fs -X POST http://localhost:8080/api/auth/login \
+            -H "Content-Type: application/json" -d '{"username":"ci","password":"ci"}'

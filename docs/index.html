@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Budget+ — семейный бюджет на двоих</title>
+  <meta name="description" content="Self-hosted веб-приложение для совместного учёта бюджета в паре: счета, траты, долги, копилки, курс НБРБ. Открытый код, MIT.">
+  <meta property="og:title" content="Budget+ — семейный бюджет на двоих">
+  <meta property="og:description" content="Счета, траты, долги и копилки в одном месте. Один Docker-контейнер на вашем сервере.">
+  <meta property="og:image" content="https://krowiel.github.io/family-budget-plus/screenshots/dashboard.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+      --bg: #0b0b14; --bg-2: #12121f; --card: rgba(255,255,255,0.045); --border: rgba(255,255,255,0.09);
+      --text: #f1f1f7; --dim: #a1a1b8; --accent: #a78bfa; --pos: #22c55e;
+      --radius: 22px;
+      --font: "Segoe UI", system-ui, -apple-system, "Inter", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; font-family: var(--font); color: var(--text); background: var(--bg); line-height: 1.6;
+      background-image:
+        radial-gradient(900px 500px at 10% -10%, rgba(99,102,241,0.25), transparent 60%),
+        radial-gradient(800px 500px at 100% 0%, rgba(168,85,247,0.2), transparent 60%);
+      background-repeat: no-repeat;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    header { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 20px; color: var(--text); }
+    .brand img { width: 38px; height: 38px; }
+    .brand b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    nav a { color: var(--dim); margin-left: 22px; font-weight: 600; font-size: 15px; }
+    nav a:hover { color: var(--text); text-decoration: none; }
+
+    .hero { text-align: center; padding: 56px 0 40px; }
+    .pill {
+      display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
+      color: #c4b5fd; background: rgba(139,92,246,0.14); border: 1px solid rgba(139,92,246,0.35);
+    }
+    h1 { font-size: clamp(36px, 6vw, 62px); line-height: 1.08; letter-spacing: -1.5px; margin: 22px auto 18px; max-width: 820px; }
+    h1 span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lead { font-size: 19px; color: var(--dim); max-width: 640px; margin: 0 auto 32px; }
+    .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; border-radius: 999px;
+      font-weight: 700; font-size: 15px; border: 1px solid var(--border); color: var(--text); background: var(--card);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .btn:hover { text-decoration: none; transform: translateY(-2px); }
+    .btn.primary { background: var(--grad); border-color: transparent; box-shadow: 0 10px 30px rgba(139,92,246,0.35); color: #fff; }
+    .btn svg { width: 18px; height: 18px; }
+
+    .shot { margin: 52px auto 0; max-width: 1000px; border-radius: 20px; overflow: hidden;
+      border: 1px solid var(--border); box-shadow: 0 30px 90px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.15); }
+    .shot img { display: block; width: 100%; height: auto; }
+
+    section { padding: 72px 0 0; }
+    h2 { font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.8px; margin: 0 0 10px; text-align: center; }
+    .sub { color: var(--dim); text-align: center; margin: 0 auto 40px; max-width: 620px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .card .ico { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 14px; color: #fff; }
+    .card .ico svg { width: 22px; height: 22px; }
+    .card h3 { margin: 0 0 6px; font-size: 18px; }
+    .card p { margin: 0; color: var(--dim); font-size: 15px; }
+
+    .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .gallery figure { margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .gallery img { display: block; width: 100%; height: auto; }
+    .gallery figcaption { padding: 14px 18px; color: var(--dim); font-size: 14px; font-weight: 600; }
+    .phones { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+    .phones img { width: 260px; border-radius: 28px; border: 1px solid var(--border); box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+
+    .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    pre {
+      margin: 0; padding: 22px; border-radius: var(--radius); background: #07070d; border: 1px solid var(--border);
+      overflow-x: auto; font: 14px/1.7 "Cascadia Code", Consolas, ui-monospace, monospace; color: #e4e4f0;
+    }
+    pre .c { color: #6b6b85; }
+    .steps ol { margin: 0; padding-left: 22px; color: var(--dim); }
+    .steps li { margin-bottom: 12px; }
+    .steps li b { color: var(--text); }
+    code { font-family: "Cascadia Code", Consolas, ui-monospace, monospace; font-size: 0.92em;
+      background: rgba(255,255,255,0.07); padding: 2px 7px; border-radius: 7px; color: #e9d5ff; }
+
+    .stack { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    .stack span { padding: 9px 16px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); font-weight: 600; font-size: 14px; }
+
+    footer { margin-top: 90px; padding: 32px 0 48px; border-top: 1px solid var(--border); color: var(--dim); font-size: 14px;
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+    @media (max-width: 760px) {
+      nav a:not(.gh) { display: none; }
+      .gallery, .steps { grid-template-columns: 1fr; }
+      .hero { padding-top: 30px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="brand" href="#"><img src="favicon.svg" alt=""> Budget<b>+</b></a>
+      <nav>
+        <a href="#features">Возможности</a>
+        <a href="#screens">Скриншоты</a>
+        <a href="#start">Установка</a>
+        <a class="gh" href="https://github.com/KROWIEL/family-budget-plus">GitHub</a>
+      </nav>
+    </header>
+
+    <div class="hero">
+      <span class="pill">Открытый код · MIT · self-hosted</span>
+      <h1>Семейный бюджет <span>на двоих</span> — на вашем сервере</h1>
+      <p class="lead">Счета, траты, долги и копилки в одном месте. Курс НБРБ, честная конвертация,
+        статистика по категориям и участникам. Один Docker-контейнер и ваши данные остаются у вас.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/KROWIEL/family-budget-plus">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          Исходный код
+        </a>
+        <a class="btn" href="https://github.com/KROWIEL/family-budget-plus/releases/latest">Скачать релиз</a>
+        <a class="btn" href="#start">Быстрый старт</a>
+      </div>
+      <div class="shot"><img src="screenshots/dashboard-dark.png" alt="Дашборд Budget+ в тёмной теме" width="1280" height="1000"></div>
+    </div>
+
+    <section id="features">
+      <h2>Всё, что нужно паре</h2>
+      <p class="sub">Без лишнего: только то, чем реально пользуются каждый день.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="ico" style="background:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+          <h3>Счета и операции</h3>
+          <p>Источники дохода, карты, наличные, копилки с целью. Доходы, расходы, переводы и платежи по долгам.</p>
+        </div>
+        <div class="card">
+          <div class="ico" style="background:#0ea5e9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></div>
+          <h3>BYN и USD по-честному</h3>
+          <p>Пересчёт по курсу НБРБ, а если банк сконвертировал иначе — впишите фактическую сумму, сохранится реальный курс.</p>
+        </div>
+        <div class="card">
+          <div class="ico" style="background:#22c55e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg></div>
+          <h3>Категории и лимиты</h3>
+          <p>Свои иконки и цвета, месячный лимит с прогресс-баром и история трат по каждой категории.</p>
+        </div>
+        <div class="card">
+          <div class="ico" style="background:#f43f5e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="m12 2 8 5H4Z"/></svg></div>
+          <h3>Долги, кредиты, лизинги</h3>
+          <p>Остаток, ежемесячный платёж, напоминание о дне платежа, архив выплаченных и чистый капитал.</p>
+        </div>
+        <div class="card">
+          <div class="ico" style="background:#a855f7"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div>
+          <h3>Статистика</h3>
+          <p>Месяц, квартал, полгода, год. Диаграмма по категориям, сравнение с прошлым периодом, вклад каждого.</p>
+        </div>
+        <div class="card">
+          <div class="ico" style="background:#f59e0b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></div>
+          <h3>Бэкап в один клик</h3>
+          <p>Скачайте копию базы и восстановите её обратно — даже из файла старой версии приложения.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="screens">
+      <h2>Как это выглядит</h2>
+      <p class="sub">Светлая и тёмная тема, адаптивная вёрстка для телефона.</p>
+      <div class="gallery">
+        <figure><img src="screenshots/stats.png" alt="Статистика" loading="lazy"><figcaption>Статистика за полгода</figcaption></figure>
+        <figure><img src="screenshots/transfer.png" alt="Перевод между валютами" loading="lazy"><figcaption>Перевод между валютами с ручной суммой</figcaption></figure>
+        <figure><img src="screenshots/debts.png" alt="Долги" loading="lazy"><figcaption>Кредиты и лизинги</figcaption></figure>
+        <figure><img src="screenshots/categories.png" alt="Категории" loading="lazy"><figcaption>Категории с месячными лимитами</figcaption></figure>
+      </div>
+      <div class="phones">
+        <img src="screenshots/mobile-dashboard.png" alt="Дашборд на телефоне" loading="lazy">
+        <img src="screenshots/mobile-stats.png" alt="Статистика на телефоне" loading="lazy">
+      </div>
+    </section>
+
+    <section id="start">
+      <h2>Запуск за пару минут</h2>
+      <p class="sub">Нужен только Docker. Для продакшена — домен: HTTPS настроится сам.</p>
+      <div class="steps">
+<pre><span class="c"># локально</span>
+git clone https://github.com/KROWIEL/family-budget-plus.git
+cd family-budget-plus
+cp .env.example .env
+docker compose -f docker-compose.local.yml up -d --build
+<span class="c"># → http://localhost:8080</span>
+
+<span class="c"># на сервере с доменом и HTTPS</span>
+docker compose up -d --build</pre>
+        <ol>
+          <li><b>Задайте пользователей.</b> В <code>.env</code> — логины, имена и пароли двух участников. Регистрации нет.</li>
+          <li><b>Для сервера</b> укажите <code>DOMAIN</code>, <code>ACME_EMAIL</code> и <code>COOKIE_SECURE=true</code>, направьте A-запись на сервер.</li>
+          <li><b>Запустите.</b> Caddy получит сертификат Let's Encrypt, база SQLite будет лежать в <code>./data</code>.</li>
+          <li><b>Подробности</b> — в <a href="https://github.com/KROWIEL/family-budget-plus#readme">README</a>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section>
+      <h2>Под капотом</h2>
+      <p class="sub">Минимум зависимостей и ресурсов — хватит небольшого VPS.</p>
+      <div class="stack">
+        <span>FastAPI</span><span>SQLite</span><span>Svelte 4</span><span>Vite</span>
+        <span>SVG-диаграммы</span><span>Lucide</span><span>Caddy</span><span>Docker</span><span>scrypt</span>
+      </div>
+    </section>
+
+    <footer>
+      <span>Budget+ · распространяется по лицензии <a href="https://github.com/KROWIEL/family-budget-plus/blob/main/LICENSE">MIT</a></span>
+      <span><a href="https://github.com/KROWIEL/family-budget-plus">GitHub</a> · <a href="https://github.com/KROWIEL/family-budget-plus/releases">Релизы</a> · <a href="https://github.com/KROWIEL/family-budget-plus/issues">Issues</a></span>
+    </footer>
+  </div>
+</body>
+</html>
